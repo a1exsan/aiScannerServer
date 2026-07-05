@@ -10,13 +10,15 @@ class materialsService:
 
     def advanced_fuzzy_search(self, query_text: str, limit: int = 3, treshold: float = 65.0):
         query = query_text.lower().replace("\n", " ").strip()
-        print(query)
         if not query:
             return []
 
         try:
             # 1. Сверхбыстрая выгрузка легких данных
-            raw_products = self.session.exec(select(Reagent.id, Reagent.name)).all()
+            raw_products = self.session.exec(
+                select(Reagent.id, Reagent.name)
+                .where(Reagent.group_id != None)
+            ).all()
             if not raw_products:
                 return []
 

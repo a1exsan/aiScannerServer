@@ -69,7 +69,7 @@ class easyOCRreader:
 
             if text_found and len(lines_text) > 0:
                 final_text = "\n\n".join(lines_text)
-                print(f"\n🚀 [ИИ УСПЕХ] ТЕКСТ УСПЕШНО ВЫТАЩЕН:\n{final_text}\n", flush=True)
+                #print(f"\n🚀 [ИИ УСПЕХ] ТЕКСТ УСПЕШНО ВЫТАЩЕН:\n{final_text}\n", flush=True)
 
                 _, img_encoded = cv2.imencode('.jpg', img)
                 img_base64 = base64.b64encode(img_encoded).decode('utf-8')
