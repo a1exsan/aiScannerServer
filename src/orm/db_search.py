@@ -62,3 +62,13 @@ class materialsService:
         except Exception as e:
             print(f"❌ [Ошибка Сервиса БД]: {str(e)}", flush=True)
             return []
+
+    def get_reagent_quantity(self, id):
+        statement = select(Reagent).where(Reagent.id == id)
+        reagent = self.session.exec(statement).unique().first()
+        if reagent:
+            q = sum(lot.current_stock for lot in reagent.lots)
+            formatted_q = f"{round(q, 4):g}"
+            return f'{formatted_q} {reagent.unit}'
+        else:
+            return '0 units'
