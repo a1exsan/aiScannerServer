@@ -6,3 +6,7 @@ paddleocr
 onnxruntime
 easyocr
 rapidfuzz
+
+sqlmodel
+pydantic
+pandas

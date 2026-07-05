@@ -3,6 +3,7 @@ from fastapi import Request, FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from src.ai.recognition.ticket.easyOCR_model import easyOCRreader
+from src.orm.models import engine
 
 fastapi_app = FastAPI()
 app.mount('/api', fastapi_app)
