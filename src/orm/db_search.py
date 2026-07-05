@@ -10,6 +10,7 @@ class materialsService:
 
     def advanced_fuzzy_search(self, query_text: str, limit: int = 3, treshold: float = 65.0):
         query = query_text.lower().replace("\n", " ").strip()
+        print(query)
         if not query:
             return []
 

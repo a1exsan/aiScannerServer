@@ -1,8 +1,14 @@
-from typing import List, Optional, Dict, Any
-from sqlmodel import SQLModel, Field, Relationship, Column, JSON, DateTime, UniqueConstraint
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON, func, DateTime, UniqueConstraint
 from enum import Enum
 from datetime import datetime, timezone
 from pydantic import field_validator
+
+if TYPE_CHECKING:
+    from .price import OligoPrice
+    from .modifications import Modification
+    from .oligomaps import MapConsumption
+    from .user import User
 
 
 class transactionType(str, Enum):
