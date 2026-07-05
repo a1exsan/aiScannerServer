@@ -1,0 +1,8 @@
+opencv-python
+numpy
+nicegui
+paddlepaddle
+paddleocr
+onnxruntime
+easyocr
+rapidfuzz
