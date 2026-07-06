@@ -1,5 +1,6 @@
+from typing import Optional, Dict, Any
 from sqlmodel import Session, select
-from src.orm.models import Reagent
+from src.orm.models import Reagent, ReagentLot, transactionType, ReagentTransaction
 from rapidfuzz import process, fuzz
 
 
@@ -73,3 +74,84 @@ class materialsService:
             return f'{formatted_q} {reagent.unit}'
         else:
             return '0 units'
+
+    def consume_reagent_auto(self, reagent_id: int, total_amount: float, comment: str = None):
+        """Списание реагента по всем доступным лотам (FIFO)"""
+        statement = select(ReagentLot).where(
+            ReagentLot.reagent_id == reagent_id,
+            ReagentLot.current_stock > 0
+        ).order_by(ReagentLot.created_at)
+
+        lots = self.session.exec(statement).all()
+        remaining = abs(total_amount)
+
+        for lot in lots:
+            if remaining <= 0:
+                break
+
+            can_take = min(lot.current_stock, remaining)
+
+            self.add_transaction(
+                lot_id=lot.id,
+                t_type=transactionType.CONSUMPTION,
+                amount=-can_take,
+                comment=f"{comment}"
+            )
+            remaining -= can_take
+        return remaining
+
+    def add_transaction(
+            self,
+            lot_id: int,
+            t_type: transactionType,
+            amount: float,
+            user_id: Optional[int] = None,
+            map_id: Optional[int] = None,
+            comment: Optional[str] = None
+    ) -> ReagentTransaction:
+        """Регистрирует движение и обновляет текущий остаток лота"""
+        db_lot = self.session.get(ReagentLot, lot_id)
+        if not db_lot:
+            raise ValueError(f"Партия ID {lot_id} не найдена")
+
+        user_id = 1
+
+        transaction = ReagentTransaction(
+            lot_id=lot_id,
+            type=t_type,
+            amount=amount,
+            user_id=user_id,
+            map_id=map_id,
+            comment=comment
+        )
+
+        db_lot.current_stock += amount
+
+        self.session.add(transaction)
+        self.session.add(db_lot)
+        self.session.commit()
+        self.session.refresh(transaction)
+        return transaction
+
+    def create_lot(self, reagent_id: int, lot_data: Dict[str, Any]) -> ReagentLot:
+        user_id = 1
+
+        # СОЗДАНИЕ НОВОГО ЛОТА
+        db_lot = ReagentLot(**lot_data, reagent_id=reagent_id)
+        # Ставим 0, так как add_transaction прибавит количество к текущему остатку
+        db_lot.current_stock = 0
+
+        self.session.add(db_lot)
+        self.session.flush()
+
+        self.add_transaction(
+            lot_id=db_lot.id,
+            t_type=transactionType.INCOMING,
+            amount=db_lot.initial_stock,
+            comment="mobile incoming",
+            user_id=user_id
+        )
+
+        self.session.commit()
+        self.session.refresh(db_lot)
+        return db_lot
