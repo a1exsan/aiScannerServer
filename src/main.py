@@ -26,12 +26,13 @@ async def upload_file(request: Request):
 
     with Session(engine) as session:
         service = materialsService(session)
-        rowdata = service.advanced_fuzzy_search(result.get('text', ''), treshold=60.0, limit=3)
+        rowdata = service.advanced_fuzzy_search(result.get('text', ''), treshold=50.0, limit=5)
         if rowdata:
             result['rowdata'] = rowdata
             result['text'] = f"[{rowdata[0]['id']}] {rowdata[0]['name']}"
         else:
-            result['text'] = f'Совпадений в базе не найдено'
+            #result['text'] = f'Совпадений в базе не найдено'
+            pass
 
     return JSONResponse(result)
 

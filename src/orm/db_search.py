@@ -30,7 +30,8 @@ class materialsService:
             fuzzy_results = process.extract(
                 query,
                 choices,
-                scorer=fuzz.token_set_ratio,
+                #scorer=fuzz.token_set_ratio,
+                scorer=fuzz.WRatio,
                 limit=limit,
                 score_cutoff=treshold
             )
