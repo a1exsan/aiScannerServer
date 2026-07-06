@@ -14,7 +14,7 @@ services:
       - ai_models_cache:/app/.cache
 
       # ТЕПЕРЬ СТРОГО ПО СТРУКТУРЕ: монтируем локальную папку data хоста внутрь контейнера
-      - ./data:/app/data
+      - ../niceoligo2/data:/app/data
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
