@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  scanner_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: camera_scanner_ai
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    volumes:
+      # Именованный том для сохранения скачанных ИИ-моделей (EasyOCR и PaddleOCR)
+      - ai_models_cache:/app/.cache
+
+      # ТЕПЕРЬ СТРОГО ПО СТРУКТУРЕ: монтируем локальную папку data хоста внутрь контейнера
+      - ./data:/app/data
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Novosibirsk
+      # Переменные окружения кэша нейросетей
+      - EASYOCR_MODULE_DATA_DIR=/app/.cache/easyocr
+      - PADDLEOCR_CONFIG_DIR=/app/.cache/paddleocr
+
+volumes:
+  ai_models_cache:
+    name: camera_scanner_ai_cache
