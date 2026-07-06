@@ -1,5 +1,5 @@
 from nicegui import app, ui
-from fastapi import Request, FastAPI
+from fastapi import Request, FastAPI, Depends, HTTPException, Header
 from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from src.ai.recognition.ticket.easyOCR_model import easyOCRreader
@@ -7,11 +7,23 @@ from src.orm.models import engine
 from sqlmodel import Session
 from src.orm.db_search import materialsService
 import json
+import os
 from datetime import datetime
 
 fastapi_app = FastAPI()
 app.mount('/api', fastapi_app)
 ai_reader = easyOCRreader()
+
+
+API_SECRET_KEY = os.getenv("API_SECRET_KEY", "fallback_secure_token_default")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if x_api_key != API_SECRET_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized client")
+    return x_api_key
+
+fastapi_app.dependencies = [Depends(verify_api_key)]
+
 
 @fastapi_app.post('/upload')
 async def upload_file(request: Request):
@@ -121,4 +133,4 @@ async def income_material(request: Request):
         return JSONResponse(content={'status': 'error', 'message': str(e)})
 
 
-ui.run(host='0.0.0.0', port=8085, reload=False)
+ui.run(host='0.0.0.0', port=8085, reload=True)

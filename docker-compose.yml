@@ -22,6 +22,7 @@ services:
       # Переменные окружения кэша нейросетей
       - EASYOCR_MODULE_DATA_DIR=/app/.cache/easyocr
       - PADDLEOCR_CONFIG_DIR=/app/.cache/paddleocr
+      - API_SECRET_KEY=${API_SECRET_KEY}
 
 volumes:
   ai_models_cache:

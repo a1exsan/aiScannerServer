@@ -136,6 +136,32 @@ class materialsService:
     def create_lot(self, reagent_id: int, lot_data: Dict[str, Any]) -> ReagentLot:
         user_id = 1
 
+        existing_lot = self.session.exec(
+            select(ReagentLot).where(
+                ReagentLot.reagent_id == reagent_id,
+                ReagentLot.lot_number == lot_data['lot_number']
+            )
+        ).first()
+
+        if existing_lot:
+            # ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО ЛОТА
+            # Обновляем initial_stock (суммируем приходы), если это необходимо для отчетности
+            existing_lot.initial_stock += lot_data['initial_stock']
+            self.session.add(existing_lot)
+
+            # Фиксируем транзакцию прихода (метод add_transaction сам обновит current_stock)
+            self.add_transaction(
+                lot_id=existing_lot.id,
+                t_type=transactionType.INCOMING,
+                amount=lot_data['initial_stock'],
+                comment="Дополнительное поступление в существующий лот",
+                user_id=user_id
+            )
+
+            self.session.commit()
+            self.session.refresh(existing_lot)
+            return existing_lot
+
         # СОЗДАНИЕ НОВОГО ЛОТА
         db_lot = ReagentLot(**lot_data, reagent_id=reagent_id)
         # Ставим 0, так как add_transaction прибавит количество к текущему остатку
