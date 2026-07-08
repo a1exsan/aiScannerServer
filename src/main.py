@@ -133,4 +133,87 @@ async def income_material(request: Request):
         return JSONResponse(content={'status': 'error', 'message': str(e)})
 
 
+@fastapi_app.post('/materials_query')
+async def materials_query(request: Request):
+    result = {'rowdata': [], 'text': ''}
+
+    try:
+        body_bytes = await request.body()
+        data = json.loads(body_bytes.decode('utf-8'))
+    except Exception as e:
+        return JSONResponse(content={'status': 'next', 'message': 'Обрыв связи'}, status_code=400)
+
+    with Session(engine) as session:
+        service = materialsService(session)
+        # Получаем ВСЕ совпадения из базы данных (до 5 штук)
+        db_rows = service.advanced_fuzzy_search(data.get('query', ''), treshold=50.0, limit=5)
+
+        if db_rows:
+            # Превращаем результат запроса в обычный python-список словарей,
+            # чтобы FastAPI смог без ошибок сериализовать его в JSON-массив
+            for row in db_rows:
+                try:
+                    # Если row — это словарь dict
+                    row_dict = {
+                        'id': row.get('id', ''),
+                        'name': row.get('name', '')
+                    }
+                except AttributeError:
+                    # Если row — это объект модели SQLAlchemy
+                    row_dict = {
+                        'id': getattr(row, 'id', ''),
+                        'name': getattr(row, 'name', '')
+                    }
+
+                # Добавляем в общий массив — ТЕПЕРЬ ПЕРЕДАЕТСЯ ВЕСЬ СПИСОК
+                result['rowdata'].append(row_dict)
+
+            # В служебный текст пишем, сколько всего совпадений мы передаем на телефон
+            result['text'] = f"Найдено совпадений: {len(result['rowdata'])}"
+        else:
+            result['text'] = 'Совпадений в базе не найдено'
+
+    # Отправляем на телефон полный JSON-объект со ВСЕМ списком материалов
+    return JSONResponse(content=result)
+
+
+@fastapi_app.post('/materials_group_content')
+async def materials_group_content(request: Request):
+    result = {'rowdata': [], 'text': ''}
+
+    try:
+        body_bytes = await request.body()
+        data = json.loads(body_bytes.decode('utf-8'))
+    except Exception as e:
+        return JSONResponse(content={'status': 'next', 'message': 'Обрыв связи'}, status_code=400)
+
+    if data:
+        with Session(engine) as session:
+            service = materialsService(session)
+            rowdata = service.get_all_groups()
+            out = [{'id': -1, 'group': 'Все материалы'}]
+            if rowdata:
+                out.extend([{'id': row['id'], 'group': row['name']} for row in rowdata])
+            g_mapping = {i: row['id'] for i, row in enumerate(out)}
+
+            rowdata = service.get_reagent_data(g_mapping[data.get('group_id', 0)])
+            result['rowdata'] = rowdata
+    return JSONResponse(content=result)
+
+
+
+@fastapi_app.get('/materials_groups')  # Автоматический префикс /api добавится сервером
+async def materials_groups(request: Request):
+
+    with Session(engine) as session:
+        service = materialsService(session)
+        rowdata = service.get_all_groups()
+
+    out = [{'id': -1, 'group': 'Все материалы'}]
+    if rowdata:
+        out.extend([{'id': row['id'], 'group': row['name']} for row in rowdata])
+    return JSONResponse(content={'groups': out})
+
+
+
 ui.run(host='0.0.0.0', port=8085, reload=True)

@@ -1,7 +1,8 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from sqlmodel import Session, select
-from src.orm.models import Reagent, ReagentLot, transactionType, ReagentTransaction
+from src.orm.models import Reagent, ReagentLot, transactionType, ReagentTransaction, ReagentGroup
 from rapidfuzz import process, fuzz
+from sqlalchemy.orm import joinedload
 
 
 class materialsService:
@@ -181,3 +182,33 @@ class materialsService:
         self.session.commit()
         self.session.refresh(db_lot)
         return db_lot
+
+    def get_all_groups(self) -> List[dict]:
+        groups = self.session.exec(select(ReagentGroup)).all()
+        return [g.model_dump(mode='json') for g in groups]
+
+    def get_reagent_data(self, selected_group_id: int) -> List[dict]:
+        statement = select(Reagent)
+
+        if selected_group_id == -1:
+            statement = statement.where(Reagent.group_id != None)
+
+        elif selected_group_id and selected_group_id > 0:
+            statement = statement.where(Reagent.group_id == selected_group_id)
+
+        statement = statement.options(joinedload(Reagent.lots))
+
+        reagents = self.session.exec(statement).unique().all()
+        rows = []
+
+        for r in reagents:
+            row = r.model_dump()
+
+            try:
+                row['total_stock'] = sum(getattr(lot, 'current_stock', 0) for lot in r.lots)
+            except AttributeError:
+                row['total_stock'] = sum(lot.get('current_stock', 0) for lot in r.lots)
+
+            rows.append(row)
+
+        return rows
