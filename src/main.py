@@ -145,24 +145,15 @@ async def materials_query(request: Request):
 
     with Session(engine) as session:
         service = materialsService(session)
-        # Получаем ВСЕ совпадения из базы данных (до 5 штук)
-        db_rows = service.advanced_fuzzy_search(data.get('query', ''), treshold=50.0, limit=5)
+        db_rows = service.advanced_fuzzy_search(data.get('query', ''), treshold=60.0, limit=5)
 
         if db_rows:
-            # Превращаем результат запроса в обычный python-список словарей,
-            # чтобы FastAPI смог без ошибок сериализовать его в JSON-массив
             for row in db_rows:
-                try:
-                    # Если row — это словарь dict
-                    row_dict = {
+                row_dict = {
                         'id': row.get('id', ''),
-                        'name': row.get('name', '')
-                    }
-                except AttributeError:
-                    # Если row — это объект модели SQLAlchemy
-                    row_dict = {
-                        'id': getattr(row, 'id', ''),
-                        'name': getattr(row, 'name', '')
+                        'name': row.get('name', ''),
+                        'unit': row.get('unit', ''),
+                        'total_stock': row.get('total_stock', ''),
                     }
 
                 # Добавляем в общий массив — ТЕПЕРЬ ПЕРЕДАЕТСЯ ВЕСЬ СПИСОК

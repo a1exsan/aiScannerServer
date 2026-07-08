@@ -32,6 +32,74 @@ class materialsService:
             fuzzy_results = process.extract(
                 query,
                 choices,
+                scorer=fuzz.WRatio,
+                limit=limit,
+                score_cutoff=treshold
+            )
+
+            if not fuzzy_results:
+                return []
+
+            # 4. Собираем ID победителей
+            matched_ids = [id_map[matched_name] for matched_name, score, index in fuzzy_results]
+
+            # 5. ИСПРАВЛЕНО: Вытаскиваем полные объекты вместе с их партиями (lots)
+            statement = select(Reagent).where(Reagent.id.in_(matched_ids))
+            statement = statement.options(joinedload(Reagent.lots))  # Жадная загрузка партий
+
+            # unique() критически важен при joinedload, чтобы SQLModel не дублировал реактивы
+            db_products = self.session.exec(statement).unique().all()
+
+            db_products_dict = {p.id: p for p in db_products}
+
+            # 6. ИСПРАВЛЕНО: Восстанавливаем порядок и динамически считаем total_stock
+            ordered_results = []
+            for matched_name, score, index in fuzzy_results:
+                p_id = id_map[matched_name]
+                if p_id in db_products_dict:
+                    product = db_products_dict[p_id]
+                    product_dict = product.model_dump()
+
+                    # Считаем суммарный остаток по всем партиям реактива
+                    try:
+                        product_dict['total_stock'] = sum(getattr(lot, 'current_stock', 0) for lot in product.lots)
+                    except AttributeError:
+                        product_dict['total_stock'] = sum(lot.get('current_stock', 0) for lot in product.lots)
+
+                    # Безопасное приведение к float для Qt и округление score для логов
+                    product_dict['total_stock'] = float(product_dict['total_stock'])
+                    product_dict["fuzzy_score"] = round(score, 1)
+
+                    ordered_results.append(product_dict)
+
+            return ordered_results
+
+        except Exception as e:
+            print(f"❌ [Ошибка Сервиса БД]: {str(e)}", flush=True)
+            return []
+
+    def advanced_fuzzy_search_old(self, query_text: str, limit: int = 3, treshold: float = 65.0):
+        query = query_text.lower().replace("\n", " ").strip()
+        if not query:
+            return []
+
+        try:
+            # 1. Сверхбыстрая выгрузка легких данных
+            raw_products = self.session.exec(
+                select(Reagent.id, Reagent.name)
+                .where(Reagent.group_id != None)
+            ).all()
+            if not raw_products:
+                return []
+
+            # 2. Карта соответствия имен и ID
+            id_map = {p.name.lower(): p.id for p in raw_products if p.name}
+            choices = list(id_map.keys())
+
+            # 3. Движок RapidFuzz
+            fuzzy_results = process.extract(
+                query,
+                choices,
                 #scorer=fuzz.token_set_ratio,
                 scorer=fuzz.WRatio,
                 limit=limit,
