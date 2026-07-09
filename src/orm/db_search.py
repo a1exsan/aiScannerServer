@@ -280,3 +280,26 @@ class materialsService:
             rows.append(row)
 
         return rows
+
+    def get_data_by_reagent_id(self, reagent_id: int) -> List[dict]:
+        statement = select(Reagent)
+
+        if reagent_id and reagent_id > 0:
+            statement = statement.where(Reagent.id == reagent_id)
+
+        statement = statement.options(joinedload(Reagent.lots))
+
+        reagents = self.session.exec(statement).unique().all()
+        rows = []
+
+        for r in reagents:
+            row = r.model_dump()
+
+            try:
+                row['total_stock'] = sum(getattr(lot, 'current_stock', 0) for lot in r.lots)
+            except AttributeError:
+                row['total_stock'] = sum(lot.get('current_stock', 0) for lot in r.lots)
+
+            rows.append(row)
+
+        return rows

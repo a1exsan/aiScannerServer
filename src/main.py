@@ -80,6 +80,38 @@ async def get_quantity(request: Request):
         return JSONResponse(content={'status': 'next', 'message': 'Обрыв связи'})
 
 
+@fastapi_app.post('/reagent_info')  # или @app.post в зависимости от роутинга NiceGUI
+async def reagent_info(request: Request):
+    try:
+        # 1. Получаем сырые байты тела запроса
+        body_bytes = await request.body()
+
+        # 2. Декодируем байты в строку и парсим JSON в Python-словарь
+        data = json.loads(body_bytes.decode('utf-8'))
+
+        # 3. Достаем значение по ключу 'id' и принудительно переводим в int
+        raw_id = data.get('id')
+        if raw_id is None:
+            return JSONResponse(content={'status': 'error', 'message': 'ID не передан'})
+
+        item_id = int(raw_id)
+        print(f"🎯 [Python] Успешно получен ID в виде int: {item_id} (тип: {type(item_id)})")
+
+        with Session(engine) as session:
+            service = materialsService(session)
+            rowdata = service.get_data_by_reagent_id(item_id)
+            if rowdata:
+                return JSONResponse(content={'info': rowdata[0]})
+            else:
+                return JSONResponse(content={'info': []})
+
+    except ValueError:
+        return JSONResponse(content={'status': 'error', 'message': 'ID не является числом'})
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        return JSONResponse(content={'status': 'next', 'message': 'Обрыв связи'})
+
+
 @fastapi_app.post('/write_off')  # или @app.post для NiceGUI
 async def write_off_material(request: Request):
     try:
@@ -88,9 +120,12 @@ async def write_off_material(request: Request):
         item_id = int(data['id'])
         amount_to_remove = float(data['amount'])
 
+        print(body_bytes)
+
         with Session(engine) as session:
             service = materialsService(session)
             remaining = service.consume_reagent_auto(item_id, amount_to_remove, comment='mobile write_off')
+            print(remaining)
             if remaining == 0:
                 q_string = service.get_reagent_quantity(item_id)
                 return JSONResponse(content={'status': 'success', 'new_quantity': q_string})
